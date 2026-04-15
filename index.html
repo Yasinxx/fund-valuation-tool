@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>基金估值页</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="masthead-shell">
+        <section class="intro-block">
+          <p class="eyebrow">LOCAL FUND VALUE CHECK</p>
+          <h1>基金估值页</h1>
+          <p class="intro-copy">
+            输入 6 位基金代码，自动抓取东方财富盘中估算、历史净值和基金类型。页面会先识别基金类别，再按你选的回看窗口切换估值框架，并把指数估值层、观察名单、持仓视角和导出一起接到同一套本地工作流里。
+          </p>
+          <div class="intro-tags">
+            <span>自动抓取</span>
+            <span>按基金类型切换</span>
+            <span>多窗口重算</span>
+            <span>指数估值层</span>
+            <span>观察名单 + 对比</span>
+            <span>本地静态页</span>
+          </div>
+        </section>
+
+        <section class="command-block">
+          <form id="lookup-form" class="lookup-form">
+            <label class="field-label" for="code-input">基金代码</label>
+            <div class="lookup-row">
+              <input
+                id="code-input"
+                class="code-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="例如 161725"
+                autocomplete="off"
+              />
+              <button id="lookup-btn" class="button button-solid" type="submit">抓取并估值</button>
+            </div>
+            <div class="control-row">
+              <div class="control-group">
+                <label class="field-label" for="lookback-select">估值回看窗口</label>
+                <select id="lookback-select" class="lookback-select">
+                  <option value="1y">近 1 年</option>
+                  <option value="3y">近 3 年</option>
+                  <option value="5y">近 5 年</option>
+                  <option value="all">全部历史</option>
+                </select>
+              </div>
+              <p class="control-hint">切换窗口时会直接用已抓到的历史净值重算，不会重新抓接口。</p>
+            </div>
+          </form>
+
+          <div class="command-links">
+            <div>
+              <p class="mini-label">示例代码</p>
+              <div id="quick-codes" class="quick-codes"></div>
+            </div>
+            <a class="guide-link" href="./models.html">查看模型说明</a>
+          </div>
+
+          <div class="action-strip">
+            <button id="compare-current-btn" class="button button-subtle" type="button" disabled>加入对比</button>
+            <button id="watchlist-current-btn" class="button button-subtle" type="button" disabled>加入观察</button>
+          </div>
+
+          <div id="status-box" class="status-box tone-info">等待输入基金代码。</div>
+        </section>
+      </div>
+    </header>
+
+    <nav class="sector-nav">
+      <div class="sector-nav-shell">
+        <button class="sector-link is-active" type="button" data-sector-target="sector-live">
+          <span class="sector-index">01</span>
+          <span class="sector-label">当前估值</span>
+        </button>
+        <button class="sector-link" type="button" data-sector-target="sector-research">
+          <span class="sector-index">02</span>
+          <span class="sector-label">研究工作区</span>
+        </button>
+        <button class="sector-link" type="button" data-sector-target="sector-discipline">
+          <span class="sector-index">03</span>
+          <span class="sector-label">仓位与参数</span>
+        </button>
+        <button class="sector-link" type="button" data-sector-target="sector-valuation">
+          <span class="sector-index">04</span>
+          <span class="sector-label">估值可信度</span>
+        </button>
+      </div>
+    </nav>
+
+    <section id="sector-live" class="page-sector is-active">
+      <div class="sector-shell">
+        <div class="sector-head">
+          <div>
+            <p class="section-kicker">SECTOR 01</p>
+            <h2>当前估值</h2>
+          </div>
+          <p class="sector-copy">这一块只解决当前这只基金现在贵不贵、为什么这么判、主要依据是什么。</p>
+        </div>
+
+        <main class="workspace">
+          <section class="summary-panel panel">
+            <div id="summary-pane" class="summary-pane empty-state">
+              <p class="section-kicker">SUMMARY</p>
+              <h2>等待抓取数据</h2>
+              <p>输入基金代码后，这里会展示当前净值快照、所选回看窗口的位置判断、均线偏离和走势。</p>
+            </div>
+          </section>
+
+          <section class="results-panel panel">
+            <div class="results-head">
+              <div>
+                <p class="section-kicker">VALUATION</p>
+                <h2>模型结果</h2>
+              </div>
+              <p class="results-copy">分数越高，表示相对当前基金类型的历史位置更偏低；这不是交易指令，只是研究口径。</p>
+            </div>
+
+            <div id="overall-banner" class="overall-banner empty-banner">
+              <strong>还没有结果</strong>
+              <span>抓取完成后，这里会给出综合结论。</span>
+            </div>
+
+            <div id="models-grid" class="models-grid"></div>
+
+            <div class="detail-grid">
+              <section id="reason-pane" class="detail-block">
+                <p class="section-kicker">READING</p>
+                <h3>如何读这个结果</h3>
+                <p>至少同时看 3 件事：综合结论、基础模型和类型模型是否同向、以及当前净值与均线和高点的距离。</p>
+              </section>
+
+              <section id="facts-pane" class="detail-block">
+                <p class="section-kicker">DATA</p>
+                <h3>数据细节</h3>
+                <p>抓取完成后，这里会列出使用到的核心数字。</p>
+              </section>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <section id="sector-research" class="page-sector">
+      <div class="sector-shell">
+        <div class="sector-head">
+          <div>
+            <p class="section-kicker">SECTOR 02</p>
+            <h2>研究工作区</h2>
+          </div>
+          <p class="sector-copy">这一块只管候选池比较和观察名单，用来判断哪些基金值得继续跟踪。</p>
+        </div>
+
+        <section class="dashboard-grid dashboard-grid-wide">
+          <section class="dashboard-panel panel panel-span-2">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">COMPARE</p>
+                <h2>多基金对比</h2>
+              </div>
+              <p class="dashboard-copy">默认会先按最近查看和本地样本自动生成对比池；你也可以手动补充基金代码。</p>
+            </div>
+            <div class="batch-row">
+              <input
+                id="compare-input"
+                class="code-input"
+                type="text"
+                placeholder="可选：手动补充多个基金代码，用空格、逗号或换行分隔"
+                autocomplete="off"
+              />
+              <button id="compare-fetch-btn" class="button button-solid" type="button">手动补充</button>
+              <button id="compare-clear-btn" class="button button-subtle" type="button">清空对比</button>
+            </div>
+            <div id="compare-pane" class="table-shell empty-state">还没有对比基金。</div>
+          </section>
+
+          <section class="dashboard-panel panel">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">WATCHLIST</p>
+                <h2>观察名单</h2>
+              </div>
+              <p class="dashboard-copy">如果你还没手动建名单，系统会先按最近查看和本地样本生成自动观察池。</p>
+            </div>
+            <div class="batch-row batch-row-tight">
+              <button id="watchlist-refresh-btn" class="button button-solid" type="button">刷新观察池</button>
+              <button id="auto-refresh-toggle-btn" class="button button-subtle" type="button">自动刷新：开</button>
+              <button id="watchlist-clear-btn" class="button button-subtle" type="button">清空名单</button>
+            </div>
+            <p id="auto-refresh-status" class="control-hint">自动刷新开启后，页面打开期间会定时更新观察池和当前基金可信度。</p>
+            <div id="watchlist-pane" class="card-stack empty-state">还没有加入观察的基金。</div>
+          </section>
+        </section>
+      </div>
+    </section>
+
+    <section id="sector-discipline" class="page-sector">
+      <div class="sector-shell">
+        <div class="sector-head">
+          <div>
+            <p class="section-kicker">SECTOR 03</p>
+            <h2>仓位与参数</h2>
+          </div>
+          <p class="sector-copy">这一块负责把研究结果变成你自己的纪律，包括持仓成本、阈值和本地导出。</p>
+        </div>
+
+        <section class="dashboard-grid">
+          <section class="dashboard-panel panel">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">POSITION</p>
+                <h2>持仓视角</h2>
+              </div>
+              <p class="dashboard-copy">给当前基金录入你的成本和目标仓位，这样结果就不只是“贵不贵”。</p>
+            </div>
+            <form id="position-form" class="stack-form">
+              <div class="inline-fields">
+                <div class="control-group">
+                  <label class="field-label" for="position-cost-input">持仓成本</label>
+                  <input id="position-cost-input" class="code-input" type="number" min="0" step="0.0001" />
+                </div>
+                <div class="control-group">
+                  <label class="field-label" for="position-shares-input">持有份额</label>
+                  <input id="position-shares-input" class="code-input" type="number" min="0" step="0.01" />
+                </div>
+              </div>
+              <div class="inline-fields">
+                <div class="control-group">
+                  <label class="field-label" for="position-target-value-input">目标市值</label>
+                  <input id="position-target-value-input" class="code-input" type="number" min="0" step="1" />
+                </div>
+                <div class="control-group">
+                  <label class="field-label" for="position-note-input">备注</label>
+                  <input id="position-note-input" class="code-input" type="text" placeholder="例如 定投仓 / 中线仓" />
+                </div>
+              </div>
+              <div class="batch-row batch-row-tight">
+                <button id="position-save-btn" class="button button-solid" type="submit">保存持仓参数</button>
+                <button id="position-clear-btn" class="button button-subtle" type="button">清除当前基金参数</button>
+              </div>
+            </form>
+            <div id="position-pane" class="card-stack empty-state">先抓一只基金，再填写你的成本和仓位信息。</div>
+          </section>
+
+          <section class="dashboard-panel panel">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">PARAMS</p>
+                <h2>自定义参数</h2>
+              </div>
+              <p class="dashboard-copy">你可以把这套模型改成更接近你自己的风格，而不是完全用默认参数。</p>
+            </div>
+            <form id="params-form" class="stack-form">
+              <div class="inline-fields">
+                <div class="control-group">
+                  <label class="field-label" for="param-low-threshold-input">偏低阈值</label>
+                  <input id="param-low-threshold-input" class="code-input" type="number" min="50" max="95" step="1" />
+                </div>
+                <div class="control-group">
+                  <label class="field-label" for="param-high-threshold-input">偏高阈值</label>
+                  <input id="param-high-threshold-input" class="code-input" type="number" min="5" max="50" step="1" />
+                </div>
+              </div>
+              <div class="inline-fields">
+                <div class="control-group">
+                  <label class="field-label" for="param-ma-multiplier-input">均线带宽系数</label>
+                  <input id="param-ma-multiplier-input" class="code-input" type="number" min="0.5" max="2" step="0.05" />
+                </div>
+                <div class="control-group">
+                  <label class="field-label" for="param-z-multiplier-input">Z 阈值系数</label>
+                  <input id="param-z-multiplier-input" class="code-input" type="number" min="0.5" max="2" step="0.05" />
+                </div>
+              </div>
+              <div class="inline-fields">
+                <div class="control-group">
+                  <label class="field-label" for="param-heat-sensitivity-input">热度敏感度</label>
+                  <input id="param-heat-sensitivity-input" class="code-input" type="number" min="0.5" max="2" step="0.05" />
+                </div>
+                <div class="control-group">
+                  <label class="field-label" for="param-volatility-sensitivity-input">波动敏感度</label>
+                  <input id="param-volatility-sensitivity-input" class="code-input" type="number" min="0.5" max="2" step="0.05" />
+                </div>
+              </div>
+              <div class="batch-row batch-row-tight">
+                <button id="params-save-btn" class="button button-solid" type="submit">保存参数</button>
+                <button id="params-reset-btn" class="button button-subtle" type="button">恢复默认</button>
+              </div>
+            </form>
+            <div id="params-pane" class="card-stack empty-state">保存参数后，当前基金、对比区和观察名单都会按新参数重算。</div>
+          </section>
+
+          <section class="dashboard-panel panel">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">EXPORT</p>
+                <h2>导出</h2>
+              </div>
+              <p class="dashboard-copy">把当前研究快照、对比结果和本地工作区一起导出。</p>
+            </div>
+            <div class="stack-actions">
+              <button id="export-current-btn" class="button button-solid" type="button">导出当前基金 JSON</button>
+              <button id="export-compare-btn" class="button button-subtle" type="button">导出对比 CSV</button>
+              <button id="export-workspace-btn" class="button button-subtle" type="button">导出工作区 JSON</button>
+            </div>
+            <div id="export-pane" class="card-stack empty-state">导出会包含你本地保存的观察名单、参数、持仓和信号记录。</div>
+          </section>
+        </section>
+      </div>
+    </section>
+
+    <section id="sector-valuation" class="page-sector">
+      <div class="sector-shell">
+        <div class="sector-head">
+          <div>
+            <p class="section-kicker">SECTOR 04</p>
+            <h2>估值可信度</h2>
+          </div>
+          <p class="sector-copy">这一块把底层指数估值、可信度和信号变化单独拿出来，避免和主结论混在一起。</p>
+        </div>
+
+        <section class="dashboard-grid">
+          <section class="dashboard-panel panel">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">INDEX LAYER</p>
+                <h2>指数真实估值层</h2>
+              </div>
+              <p class="dashboard-copy">会先尝试自动映射指数。常见国内指数会优先自动补充官方 factsheet 口径；其他情况仍可手动录入覆盖。</p>
+            </div>
+            <div id="benchmark-pane" class="card-stack empty-state">当前基金抓取完成后，这里会显示自动映射到的指数和估值录入入口。</div>
+          </section>
+
+          <section class="dashboard-panel panel">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">CONFIDENCE</p>
+                <h2>估值可信度</h2>
+              </div>
+              <p class="dashboard-copy">不是所有基金都适合同样信任这套估值，可信度会考虑基金类型、样本长度和数据完备度。</p>
+            </div>
+            <div id="confidence-pane" class="card-stack empty-state">当前基金抓取完成后，这里会显示可信度评分和原因。</div>
+          </section>
+
+          <section class="dashboard-panel panel">
+            <div class="dashboard-head">
+              <div>
+                <p class="section-kicker">SIGNALS</p>
+                <h2>信号变化记录</h2>
+              </div>
+              <p class="dashboard-copy">只记录“真正变了什么”，而不是每次刷新都留一条无意义日志。</p>
+            </div>
+            <div id="signal-history-pane" class="card-stack empty-state">还没有检测到明显的信号变化。</div>
+          </section>
+        </section>
+      </div>
+    </section>
+
+    <footer class="footer-note">
+      <p>
+        说明：这里的“估值”是基金净值位置估值，不是股票那种基本面内在价值。低位不等于马上该买，高位也不等于一定会跌。
+      </p>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

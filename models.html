@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>基金估值模型说明</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="guide-page">
+    <div class="guide-shell">
+      <section class="guide-intro">
+        <p class="eyebrow">MODEL NOTES</p>
+        <h1>模型说明</h1>
+        <p>
+          这版不是简单给所有基金套同一组公式。页面会先识别基金类型，再决定该看哪些模型、用什么阈值、综合分怎么加权；你还可以自己改参数、维护观察名单、补录指数估值层。
+        </p>
+        <div class="guide-meta">
+          <span>先识别基金类型</span>
+          <span>基础模型 + 类型模型</span>
+          <span>指数估值层可手动补录</span>
+          <span>可信度单独评分</span>
+          <span>综合分按类型加权</span>
+        </div>
+        <div class="back-row">
+          <a class="back-link" href="./index.html">返回估值主页</a>
+        </div>
+      </section>
+
+      <main class="guide-body">
+        <section class="guide-section">
+          <p class="section-kicker">STEP 01</p>
+          <h2>先做基金分类</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>优先看什么</h3>
+              <ul class="guide-list">
+                <li>先看东方财富 `FTYPE`。</li>
+                <li>再结合基金名称里的 `ETF / 指数 / QDII / 债券` 等关键词。</li>
+                <li>再看资产配置里的股票占比、债券占比做兜底判断。</li>
+              </ul>
+            </article>
+            <article class="guide-card">
+              <h3>当前分 5 类</h3>
+              <ul class="guide-list">
+                <li>指数基金 / ETF</li>
+                <li>主动权益 / 偏股混合</li>
+                <li>债券基金</li>
+                <li>QDII / 海外权益</li>
+                <li>货币基金</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">BASE MODELS</p>
+          <h2>所有权益与债基都先跑 4 个基础模型</h2>
+          <p>其中区间模型、Z-Score 模型和长周期分位模型，会用你在主页选的回看窗口，默认不是写死的 240 日。</p>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>所选窗口区间模型</h3>
+              <div class="formula-snippet">区间位置 = (当前净值 - 所选窗口低点) / (所选窗口高点 - 所选窗口低点)
+区间模型分数 = (1 - 区间位置) * 100</div>
+              <p>你在主页选近 1 年、近 3 年、近 5 年或全部历史，这里的区间就跟着切换。</p>
+            </article>
+            <article class="guide-card">
+              <h3>均线偏离模型</h3>
+              <div class="formula-snippet">均线偏离 = 当前净值 / 均线 - 1
+单条均线得分 = clamp((带宽 - 偏离) / (2 * 带宽), 0, 1)</div>
+              <p>但这里的带宽不是固定值，会按基金类型调整。债基的带宽更窄，QDII 更宽。</p>
+            </article>
+            <article class="guide-card">
+              <h3>Z-Score 模型</h3>
+              <div class="formula-snippet">Z = (当前净值 - 所选窗口均值) / 所选窗口标准差
+Z 分数 = clamp((类型阈值 - Z) / (2 * 类型阈值), 0, 1) * 100</div>
+              <p>同样会按基金类型换阈值。波动大的基金允许更宽的 Z 区间。</p>
+            </article>
+            <article class="guide-card">
+              <h3>多周期分位模型</h3>
+              <div class="formula-snippet">分位 = 历史样本中 <= 当前净值 的比例
+分位模型分数 = (1 - (30% * 60日分位 + 30% * 120日分位 + 40% * 所选窗口分位)) * 100</div>
+              <p>它用 60 日、120 日和你选的主窗口一起做排序，避免只被单一极值点带偏。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">TYPE MODELS</p>
+          <h2>指数 / 主动权益 / QDII 的附加模型</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>指数真实估值层</h3>
+              <div class="formula-snippet">默认先自动映射常见指数
+部分常见国内指数会先自动抓官方 factsheet 的：
+1. PE
+2. PB
+3. 股息率
+再按本地估值带宽换成自动估值分
+如果自动抓不到，
+再由你手动录入：
+1. 整体估值分位
+2. PE 分位
+3. PB 分位
+4. 股息率分位
+5. ERP 分位</div>
+              <p>这层只对指数基金 / ETF 和部分 QDII 开启。没有这层时，页面仍可看净值位置，但不等于真正看到了底层资产便宜与否。</p>
+            </article>
+            <article class="guide-card">
+              <h3>热度 / 拥挤度模型</h3>
+              <div class="formula-snippet">对 1月 / 3月 / 6月 / 1年收益率分别做反向打分
+收益越热，分数越低
+不同基金类型使用不同收益带宽</div>
+              <p>它不是看“涨得多就是好”，而是看这只基金是不是已经变得太热、太拥挤。</p>
+            </article>
+            <article class="guide-card">
+              <h3>波动过滤模型</h3>
+              <div class="formula-snippet">综合看：
+1. 当前相对 60 日高点回撤
+2. 20 日年化波动
+3. 20 日波动 / 60 日波动
+4. 单日估算冲击</div>
+              <p>目的是过滤“看上去低位，其实还在高波动下坠”的假便宜。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">BOND MODELS</p>
+          <h2>债券基金的专属模型</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>债基窄带回归模型</h3>
+              <div class="formula-snippet">仍然看 MA20 / MA60 / MA120
+但带宽缩到约 1.2% / 2.2% / 3.5%</div>
+              <p>债基波动远小于权益基金，所以需要更窄的观察带宽。</p>
+            </article>
+            <article class="guide-card">
+              <h3>债基稳态过滤模型</h3>
+              <div class="formula-snippet">综合看：
+1. 20 日年化波动
+2. 当前相对 60 日高点回撤
+3. 债券占比和股票占比</div>
+              <p>它解决的是另一个问题：低位到底是利率回调带来的机会，还是风险暴露失控带来的下跌。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">TYPE WEIGHTS</p>
+          <h2>综合估值分怎么加权</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>指数基金 / ETF</h3>
+              <p>现在不再只看净值位置，而是把基础位置、指数真实估值层、热度和波动过滤一起做加权。</p>
+              <div class="formula-snippet">基础位置约 50%
+指数真实估值层约 20%
+热度 / 拥挤度约 18%
+波动过滤约 12%</div>
+            </article>
+            <article class="guide-card">
+              <h3>主动权益 / 偏股混合</h3>
+              <p>更重热度和波动，因为主动基金的基金经理风格会让净值位置不如指数那样直接。</p>
+              <div class="formula-snippet">基础位置约 56%
+热度 / 拥挤度约 24%
+波动过滤约 20%</div>
+            </article>
+            <article class="guide-card">
+              <h3>债券基金</h3>
+              <p>更重窄带回归和稳态过滤，因为债基真正重要的是“偏离够不够大”和“波动有没有失真”。</p>
+              <div class="formula-snippet">基础位置约 56%
+债基窄带回归约 22%
+债基稳态过滤约 22%</div>
+            </article>
+            <article class="guide-card">
+              <h3>QDII / 海外权益</h3>
+              <p>QDII 也能补一层指数估值，但权重不会像宽基指数那样高，因为还有汇率和市场结构噪音。</p>
+              <div class="formula-snippet">基础位置约 44%
+指数真实估值层约 18%
+热度 / 拥挤度约 19%
+波动过滤约 19%</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">PARAMS</p>
+          <h2>自定义参数会改什么</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>阈值</h3>
+              <div class="formula-snippet">偏低阈值：默认 65
+偏高阈值：默认 35</div>
+              <p>它决定综合分多少开始算“偏低”或“偏高”。你如果更保守，可以把偏低阈值继续调高。</p>
+            </article>
+            <article class="guide-card">
+              <h3>均线带宽 / Z 系数</h3>
+              <div class="formula-snippet">均线带宽系数 ↑
+Z 阈值系数 ↑
+= 模型更宽松</div>
+              <p>这两个系数越大，模型越不容易把轻微偏离判成低估或高估。</p>
+            </article>
+            <article class="guide-card">
+              <h3>热度敏感度</h3>
+              <div class="formula-snippet">热度敏感度 ↑
+= 收益一热就更快扣分</div>
+              <p>适合那些不愿意追涨、特别在意拥挤度的人。</p>
+            </article>
+            <article class="guide-card">
+              <h3>波动敏感度</h3>
+              <div class="formula-snippet">波动敏感度 ↑
+= 高波动和大冲击更快扣分</div>
+              <p>适合把“先稳住再说”放在第一位的人。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">CONFIDENCE</p>
+          <h2>可信度怎么算</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>加分项</h3>
+              <ul class="guide-list">
+                <li>历史样本足够长。</li>
+                <li>盘中估算净值可用。</li>
+                <li>基金元信息完整。</li>
+                <li>指数基金补录了底层指数估值分位。</li>
+              </ul>
+            </article>
+            <article class="guide-card">
+              <h3>减分项</h3>
+              <ul class="guide-list">
+                <li>所选窗口样本不足，被迫退回全部历史。</li>
+                <li>部分模型缺失，没有参与加权。</li>
+                <li>主动基金本身只能做风格代理。</li>
+                <li>指数真实估值层为空。</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">WORKFLOW</p>
+          <h2>新增页面功能怎么用</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>多基金对比</h3>
+              <p>一次输入多只基金，横向看综合分、可信度和指数层结果，适合做候选池筛查。</p>
+            </article>
+            <article class="guide-card">
+              <h3>观察名单</h3>
+              <p>把常看的基金放进去，后续集中刷新；只有结论明显变化时，信号记录才会新增一条。</p>
+            </article>
+            <article class="guide-card">
+              <h3>持仓视角</h3>
+              <p>录入你的持仓成本、份额和目标市值后，页面会把“便宜不便宜”改写成更接近仓位动作的话术。</p>
+            </article>
+            <article class="guide-card">
+              <h3>导出</h3>
+              <p>可以导出当前基金快照、对比区 CSV 和整个本地工作区 JSON，方便你自己留档或迁移。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="guide-section">
+          <p class="section-kicker">READING</p>
+          <h2>怎么读结果</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <h3>先看类型</h3>
+              <p>先确认页面把它识别成什么。如果识别错了，后面的综合分就没有意义。</p>
+            </article>
+            <article class="guide-card">
+              <h3>再看模型是否同向</h3>
+              <p>综合分只是摘要，真正重要的是基础位置模型和类型模型是不是同时偏低或同时偏高。</p>
+            </article>
+            <article class="guide-card">
+              <h3>最后看边界</h3>
+              <p>这仍然是“位置估值”，不是基本面内在价值。它能告诉你贵不贵，但不能替你判断未来一定涨跌。</p>
+            </article>
+            <article class="guide-card">
+              <h3>货币基金例外</h3>
+              <p>货币基金不做这套估值。页面会直接提示你不适用，而不是硬给一个低估/高估标签。</p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
