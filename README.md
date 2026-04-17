@@ -41,7 +41,7 @@ fund-valuation-tool/
 
 ## 怎么用
 
-1. 用浏览器打开 `/Users/sqz/openClaw/fund-valuation-tool/index.html`
+1. 用浏览器打开 `index.html`
 2. 输入基金代码，例如 `161725`
 3. 点“抓取并估值”
 4. 先看页面识别出来的基金类型
@@ -50,12 +50,12 @@ fund-valuation-tool/
 7. 如果是指数基金 / QDII，可以在“指数真实估值层”里补录底层指数的分位
 8. 如果你常看多只基金，可以把它们加入对比区或观察名单
 9. 如果你想把结果更贴近自己的纪律，就在参数区改阈值和敏感度
-10. 想看公式时，打开 `/Users/sqz/openClaw/fund-valuation-tool/models.html`
+10. 想看公式时，打开 `models.html`
 
 如果浏览器直接从 `file://` 打开时拦了远程脚本，就在目录下起个本地静态服务：
 
 ```bash
-cd /Users/sqz/openClaw/fund-valuation-tool
+cd fund-valuation-tool
 python3 -m http.server 8080
 ```
 
